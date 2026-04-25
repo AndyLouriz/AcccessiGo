@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AccessiGo — Barangay Sta. Rita</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     HEADER
+     ══════════════════════════════════════════ -->
+<header>
+  <div class="logo" onclick="showView('home')" id="logo-btn" title="AccessiGo Home">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 8v4l2.5 2.5"/>
+        <circle cx="12" cy="4.5" r="1" fill="currentColor" stroke="none"/>
+      </svg>
+    </div>
+    <div class="logo-name">Accessi<span>Go</span></div>
+  </div>
+
+  <nav>
+    <button class="nav-btn active" id="nb-home"   onclick="showView('home')">Home</button>
+    <button class="nav-btn"        id="nb-map"    onclick="gotoMap()">Navigate</button>
+    <button class="nav-btn"        id="nb-report" onclick="gotoReport()">Report</button>
+    <button class="nav-btn"        id="nb-about"  onclick="showView('about')">About</button>
+    <!-- Admin nav — shown only when logged in as admin -->
+    <button class="nav-btn nav-btn-admin" id="nb-admin" onclick="showView('admin')" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;margin-right:4px;vertical-align:middle">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>Admin
+    </button>
+  </nav>
+
+  <div class="header-right">
+    <!-- Audio toggle -->
+    <button class="ico-btn" id="audio-hdr-btn" onclick="toggleGlobalAudio()" title="Audio Guidance">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+      </svg>
+    </button>
+
+    <!-- Guest state -->
+    <div id="guest-btns" style="display:flex;gap:6px">
+      <button class="btn-o" onclick="openLogin()">Sign In</button>
+      <button class="btn-p" onclick="openSignup()">Sign Up</button>
+    </div>
+
+    <!-- Logged-in state -->
+    <div id="user-btns" style="display:none;position:relative">
+      <div class="user-chip" onclick="toggleDrop()" id="user-chip">
+        <div class="avatar" id="hdr-avatar">?</div>
+        <div class="user-name" id="hdr-uname">User</div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:11px;height:11px;color:var(--g400)">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </div>
+      <div class="user-drop" id="user-drop">
+        <div class="drop-user-info">
+          <div class="dui-name"  id="drop-name">User Name</div>
+          <div class="dui-email" id="drop-email">user@email.com</div>
+          <div class="dui-role"  id="drop-role" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            Administrator
+          </div>
+        </div>
+        <div class="drop-item" id="drop-admin-item" onclick="showView('admin');closeDrop()" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Admin Panel
+        </div>
+        <div class="drop-item" onclick="showView('report');closeDrop()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add a Location
+        </div>
+        <div class="drop-item" onclick="showView('about');closeDrop()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          About
+        </div>
+        <div class="drop-item danger" onclick="logout()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Sign Out
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════
+     MAIN CONTENT
+     ══════════════════════════════════════════ -->
+<main>
+
+  <!-- ══ HOME VIEW ══ -->
+  <div id="home-view" class="view active">
+    <div class="home-left">
+      <div class="pill">
+        <div class="pill-dot"></div>
+        Barangay Sta. Rita · Olongapo City
+      </div>
+      <h1>Navigate <em>with</em><br>Confidence<br>&amp; Dignity</h1>
+      <p class="hero-p">
+        AccessiGo crowdsources wheelchair ramps, audio waypoints, and accessible paths
+        across Barangay Sta. Rita — built by the community, for every person.
+      </p>
+      <div class="cta-row">
+        <button class="btn-hero btn-hero-w" onclick="gotoMap()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+          Start Navigating
+        </button>
+        <button class="btn-hero btn-hero-g" onclick="gotoReport()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add a Spot
+        </button>
+      </div>
+      <div class="stats-row">
+        <div class="stat"><div class="stat-n" id="s-locs">0</div><div class="stat-l">Mapped Spots</div></div>
+        <div class="stat"><div class="stat-n" id="s-routes">0</div><div class="stat-l">Safe Routes</div></div>
+        <div class="stat"><div class="stat-n" id="s-contrib">0</div><div class="stat-l">Contributors</div></div>
+        <div class="stat"><div class="stat-n" id="s-audio">0</div><div class="stat-l">Audio Guides</div></div>
+      </div>
+    </div>
+    <div class="home-right" id="home-map-wrap"></div>
+  </div>
+
+  <!-- ══ MAP / NAVIGATE VIEW ══ -->
+  <div id="map-view" class="view">
+    <div class="map-wrap" id="map-wrap">
+      <div class="map-grid-bg"></div>
+      <div class="map-svg-wrap"></div>
+      <div id="marker-layer" style="position:absolute;inset:0;pointer-events:none;z-index:5;transform-origin:center center"></div>
+      <div id="route-layer" style="position:absolute;inset:0;pointer-events:none;z-index:6;transform-origin:center center"></div>
+      <div class="user-loc" id="user-loc" style="left:50%;top:72%">
+        <div class="user-dot"></div>
+        <div class="user-ring"></div>
+      </div>
+      <div class="map-ctrl">
+        <button class="mc-btn" onclick="zoomIn()"   title="Zoom In"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+        <button class="mc-btn" onclick="zoomOut()"  title="Zoom Out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+        <div class="mc-sep"></div>
+        <button class="mc-btn" onclick="resetZoom()" title="Reset"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+        <button class="mc-btn" onclick="locateMe()"  title="My Location"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg></button>
+        <button class="mc-btn" onclick="findNearestRamp()" title="Nearest Ramp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l18-10"/><line x1="3" y1="17" x2="3" y2="21"/><line x1="21" y1="7" x2="21" y2="11"/></svg></button>
+      </div>
+      <div class="map-badge">
+        <div class="mb-title">Brgy. Sta. Rita</div>
+        <div class="mb-sub">Quezon City · <span id="map-count">0</span> spots mapped</div>
+      </div>
+      <div class="map-legend">
+        <div class="leg-t">Legend</div>
+        <div class="leg-i"><div class="leg-d" style="background:#d0d0d0"></div>Ramp</div>
+        <div class="leg-i"><div class="leg-d" style="background:#909090"></div>Audio</div>
+        <div class="leg-i"><div class="leg-d" style="background:#666"></div>Elevator</div>
+        <div class="leg-i"><div class="leg-d" style="background:#505050"></div>Park</div>
+        <div class="leg-i"><div class="leg-d" style="background:#686868"></div>Service</div>
+        <div class="leg-i"><div class="leg-d" style="background:#444"></div>Hazard</div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="map-sidebar">
+      <!-- Filter chips -->
+      <div class="chips">
+        <div class="chip on" onclick="setFilter('all',this)">All</div>
+        <div class="chip" onclick="setFilter('ramp',this)">Ramps</div>
+        <div class="chip" onclick="setFilter('audio',this)">Audio</div>
+        <div class="chip" onclick="setFilter('elevator',this)">Lifts</div>
+        <div class="chip" onclick="setFilter('park',this)">Parks</div>
+        <div class="chip" onclick="setFilter('service',this)">Services</div>
+        <div class="chip" onclick="setFilter('danger',this)">Hazards</div>
+      </div>
+      <!-- Search -->
+      <div class="loc-search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="loc-search" placeholder="Search locations…" oninput="renderCards()">
+      </div>
+      <!-- Card list -->
+      <div class="card-list" id="card-list"></div>
+
+      <!-- Audio player bar -->
+      <div class="audio-bar" id="audio-bar">
+        <div class="a-wave" id="a-wave">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <div class="a-info">
+          <div class="a-title" id="a-title">Audio Guide Ready</div>
+          <div class="a-sub"   id="a-sub">Select a location to start</div>
+        </div>
+        <button class="a-btn" onclick="toggleAudio()">
+          <svg id="a-play-ico"  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <svg id="a-pause-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+        </button>
+      </div>
+
+      <!-- Route box -->
+      <div class="route-box" id="route-box">
+        <div class="rb-head">
+          <div class="rb-title" id="rb-title">Route</div>
+          <button class="rb-close" onclick="closeRoute()">✕</button>
+        </div>
+        <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
+        <ul class="step-list" id="rb-steps"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ REPORT VIEW ══ -->
+  <div id="report-view" class="view">
+    <div class="phead fade-in">
+      <h2>Report a Location</h2>
+      <p>Help the community by mapping accessible spots and hazards in Barangay Sta. Rita.</p>
+    </div>
+    <div class="rg2 fade-in">
+      <div class="rcard rg-full">
+        <div class="rlabel">Type of Location</div>
+        <div class="type-grid">
+          <button class="tybtn sel" onclick="selType(this,'ramp')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l18-10"/><line x1="3" y1="17" x2="3" y2="21"/><line x1="21" y1="7" x2="21" y2="11"/></svg>Ramp</button>
+          <button class="tybtn" onclick="selType(this,'audio')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Audio Guide</button>
+          <button class="tybtn" onclick="selType(this,'elevator')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 7l3-3 3 3M9 17l3 3 3-3"/></svg>Elevator/Lift</button>
+          <button class="tybtn" onclick="selType(this,'service')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Public Service</button>
+          <button class="tybtn" onclick="selType(this,'park')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22V12m0 0C12 7 7 4 7 4s5 .5 5 8zm0 0c0-7.5 5-8 5-8s-5 3-5 8"/></svg>Park/Open Space</button>
+          <button class="tybtn" onclick="selType(this,'danger')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Hazard</button>
+        </div>
+      </div>
+      <div class="rcard">
+        <div class="fg"><label>Location Name</label><input type="text" id="rpt-name" placeholder="e.g., Barangay Hall Ramp"></div>
+        <div class="fg"><label>Street / Landmark</label><input type="text" id="rpt-street" placeholder="e.g., Sta. Rita St., near the chapel"></div>
+        <div class="fg"><label>Description</label><textarea id="rpt-desc" rows="4" placeholder="Describe the feature or hazard in detail…"></textarea></div>
+      </div>
+      <div class="rcard">
+        <div class="fg">
+          <label>Accessibility Rating</label>
+          <select id="rpt-rating">
+            <option value="5">★★★★★ Excellent</option>
+            <option value="4">★★★★☆ Good</option>
+            <option value="3">★★★☆☆ Fair</option>
+            <option value="2">★★☆☆☆ Poor</option>
+            <option value="1">★☆☆☆☆ Inaccessible</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Audio Cue Text</label>
+          <div style="display:flex;gap:6px">
+            <input type="text" id="rpt-audio" placeholder="Short spoken description…" style="flex:1">
+            <button class="ico-btn" onclick="recordAudio()" style="width:40px;height:40px;flex-shrink:0" title="Record voice note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="fg"><label>Your Name (optional)</label><input type="text" id="rpt-rname" placeholder="Anonymous"></div>
+        <button class="sub-btn" onclick="submitReport()">Submit Report</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ABOUT VIEW ══ -->
+  <div id="about-view" class="view">
+    <div style="max-width:900px;margin:0 auto;width:100%">
+      <div class="phead fade-in">
+        <h2>About AccessiGo</h2>
+        <p>Empowering persons with disabilities through community-driven accessibility mapping in Barangay Sta. Rita, Olongapo City.</p>
+      </div>
+      <div class="about-grid fade-in">
+        <div class="acard">
+          <div class="aico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+          <h3>Crowdsourced Mapping</h3>
+          <p>Every resident can contribute. Report ramps, elevators, hazards, and accessible paths. Verified by the community, kept current by the community.</p>
+        </div>
+        <div class="acard">
+          <div class="aico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></div>
+          <h3>Audio Guidance</h3>
+          <p>Real-time spoken navigation for persons with visual impairments — announcing nearby features, hazards, and turn-by-turn directions in Filipino and English.</p>
+        </div>
+        <div class="acard">
+          <div class="aico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg></div>
+          <h3>Accessible Routes</h3>
+          <p>Routes prioritize wheelchair-friendly paths, avoiding stairs, broken surfaces, and obstacles — rated and verified by community members.</p>
+        </div>
+        <div class="acard">
+          <div class="aico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+          <h3>Community Driven</h3>
+          <p>Built with and for PWDs, senior citizens, and caregivers of Barangay Sta. Rita. Every pin is a community member making a difference.</p>
+        </div>
+        <div class="acard acard-full">
+          <div class="big-stats">
+            <div class="bs-stat"><div class="bs-n" id="ab-locs">28</div><div class="bs-l">Mapped Locations</div></div>
+            <div class="bs-stat"><div class="bs-n">96</div><div class="bs-l">Contributors</div></div>
+            <div class="bs-stat"><div class="bs-n">34</div><div class="bs-l">Audio Guides</div></div>
+            <div class="bs-stat"><div class="bs-n">18</div><div class="bs-l">Accessible Routes</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ADMIN DASHBOARD VIEW ══ -->
+  <div id="admin-view" class="view">
+    <div class="adm-layout">
+
+      <!-- Sidebar -->
+      <aside class="adm-sidebar">
+        <div class="adm-brand">
+          <div class="adm-shield">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div>
+            <div class="adm-brand-title">Admin Panel</div>
+            <div class="adm-brand-sub">AccessiGo</div>
+          </div>
+        </div>
+        <nav class="adm-nav">
+          <div class="adm-nav-item active" id="adn-overview" onclick="adminTab('overview')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            Overview
+          </div>
+          <div class="adm-nav-item" id="adn-locations" onclick="adminTab('locations')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            Locations
+            <span class="adm-nav-count" id="adn-loc-count">0</span>
+          </div>
+          <div class="adm-nav-item" id="adn-pending" onclick="adminTab('pending')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Pending
+            <span class="adm-nav-count adm-nav-count-warn" id="adn-pend-count">0</span>
+          </div>
+          <div class="adm-nav-item" id="adn-users" onclick="adminTab('users')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Users
+            <span class="adm-nav-count" id="adn-user-count">0</span>
+          </div>
+        </nav>
+        <button class="adm-signout" onclick="logout()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Sign Out
+        </button>
+      </aside>
+
+      <!-- Main panel -->
+      <div class="adm-main">
+
+        <!-- ── Overview Tab ── -->
+        <div class="adm-tab active" id="admt-overview">
+          <div class="adm-header">
+            <h2>Overview</h2>
+            <div class="adm-header-sub">Welcome back, <span id="adm-uname">Admin</span></div>
+          </div>
+          <div class="adm-stat-grid">
+            <div class="adm-stat-card">
+              <div class="adm-stat-ico" style="background:rgba(255,255,255,0.06)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              </div>
+              <div class="adm-stat-val" id="adms-total">0</div>
+              <div class="adm-stat-lbl">Total Locations</div>
+            </div>
+            <div class="adm-stat-card">
+              <div class="adm-stat-ico" style="background:rgba(255,255,255,0.06)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </div>
+              <div class="adm-stat-val adm-warn" id="adms-pending">0</div>
+              <div class="adm-stat-lbl">Pending Review</div>
+            </div>
+            <div class="adm-stat-card">
+              <div class="adm-stat-ico" style="background:rgba(255,255,255,0.06)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              </div>
+              <div class="adm-stat-val" id="adms-users">0</div>
+              <div class="adm-stat-lbl">Registered Users</div>
+            </div>
+            <div class="adm-stat-card">
+              <div class="adm-stat-ico" style="background:rgba(255,255,255,0.06)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+              </div>
+              <div class="adm-stat-val" id="adms-audio">0</div>
+              <div class="adm-stat-lbl">Audio Guides</div>
+            </div>
+          </div>
+
+          <!-- Type breakdown -->
+          <div class="adm-section-title">Locations by Type</div>
+          <div class="adm-type-bars" id="adm-type-bars"></div>
+
+          <!-- Quick actions -->
+          <div class="adm-section-title">Quick Actions</div>
+          <div class="adm-actions-row">
+            <button class="adm-action-btn" onclick="adminTab('pending')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              Review Pending
+            </button>
+            <button class="adm-action-btn" onclick="adminTab('locations')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Manage Locations
+            </button>
+            <button class="adm-action-btn" onclick="adminTab('users')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              View Users
+            </button>
+            <button class="adm-action-btn" onclick="showView('report')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Location
+            </button>
+          </div>
+        </div>
+
+        <!-- ── Locations Tab ── -->
+        <div class="adm-tab" id="admt-locations">
+          <div class="adm-header">
+            <h2>All Locations</h2>
+            <div class="adm-header-sub" id="adm-loc-subtitle">Loading…</div>
+          </div>
+          <div class="adm-toolbar">
+            <input class="adm-search" type="text" id="adm-loc-search" placeholder="Search locations…" oninput="renderAdminLocations()">
+            <select class="adm-filter-sel" id="adm-loc-type" onchange="renderAdminLocations()">
+              <option value="">All types</option>
+              <option value="ramp">Ramp</option>
+              <option value="audio">Audio</option>
+              <option value="elevator">Elevator</option>
+              <option value="service">Service</option>
+              <option value="park">Park</option>
+              <option value="danger">Hazard</option>
+            </select>
+          </div>
+          <div class="adm-table-wrap">
+            <table class="adm-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Street</th>
+                  <th>Rating</th>
+                  <th>Check-ins</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="adm-loc-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ── Pending Tab ── -->
+        <div class="adm-tab" id="admt-pending">
+          <div class="adm-header">
+            <h2>Pending Submissions</h2>
+            <div class="adm-header-sub">Review and approve community-submitted locations</div>
+          </div>
+          <div id="adm-pending-list"></div>
+        </div>
+
+        <!-- ── Users Tab ── -->
+        <div class="adm-tab" id="admt-users">
+          <div class="adm-header">
+            <h2>Registered Users</h2>
+            <div class="adm-header-sub" id="adm-users-sub">Loading…</div>
+          </div>
+          <div class="adm-table-wrap">
+            <table class="adm-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Joined</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="adm-users-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /.adm-main -->
+    </div><!-- /.adm-layout -->
+  </div><!-- /#admin-view -->
+
+</main>
+
+<!-- ══════════════════════════════════════════
+     AUTH MODALS
+     ══════════════════════════════════════════ -->
+
+<!-- Login Modal -->
+<div class="backdrop" id="login-modal">
+  <div class="modal">
+    <div class="modal-logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l2 2"/></svg>
+      </div>
+      <span>AccessiGo</span>
+    </div>
+    <h3>Welcome back</h3>
+    <div class="sub">Sign in to continue mapping accessibility in Sta. Rita.</div>
+    <div class="fg"><label>Email address</label><input type="email" id="li-email" placeholder="you@email.com"></div>
+    <div class="fg"><label>Password</label><input type="password" id="li-pw" placeholder="••••••••"></div>
+    <div class="err-msg" id="li-err">Incorrect email or password.</div>
+    <button class="auth-submit" onclick="doLogin()">Sign In</button>
+    <div class="divider">or</div>
+    <div class="auth-switch">Don't have an account? <a onclick="switchToSignup()">Create one</a></div>
+    <div class="auth-switch" style="margin-top:6px"><a onclick="closeAuth()" style="color:var(--g500)">Continue as guest</a></div>
+    <div class="auth-switch" style="margin-top:10px;border-top:1px solid var(--g700);padding-top:10px">
+      <a onclick="openAdminLogin()" style="color:var(--g500);font-size:0.72rem;display:inline-flex;align-items:center;gap:4px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:11px;height:11px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Admin Access
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Sign Up Modal -->
+<div class="backdrop" id="signup-modal">
+  <div class="modal">
+    <div class="modal-logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l2 2"/></svg>
+      </div>
+      <span>AccessiGo</span>
+    </div>
+    <h3>Create your account</h3>
+    <div class="sub">Join the community mapping accessibility in Barangay Sta. Rita.</div>
+    <div class="fg"><label>Full Name</label><input type="text" id="su-name" placeholder="Juan dela Cruz"></div>
+    <div class="fg"><label>Email address</label><input type="email" id="su-email" placeholder="you@email.com"></div>
+    <div class="fg"><label>Password</label><input type="password" id="su-pw" placeholder="At least 6 characters"></div>
+    <div class="err-msg" id="su-err">Please fill in all fields correctly.</div>
+    <button class="auth-submit" onclick="doSignup()">Create Account</button>
+    <div class="divider">or</div>
+    <div class="auth-switch">Already have an account? <a onclick="switchToLogin()">Sign in</a></div>
+    <div class="auth-switch" style="margin-top:6px"><a onclick="closeAuth()" style="color:var(--g500)">Continue as guest</a></div>
+  </div>
+</div>
+
+<!-- ══ ADMIN LOGIN MODAL ══ -->
+<div class="backdrop" id="admin-modal">
+  <div class="modal modal-admin">
+    <button class="modal-close-x" onclick="closeAdminLogin()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="adm-modal-header">
+      <div class="adm-modal-shield">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <div>
+        <h3 style="margin-bottom:2px">Admin Access</h3>
+        <div class="sub" style="margin-bottom:0">Restricted to authorized personnel only.</div>
+      </div>
+    </div>
+    <div class="adm-cred-hint">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Default credentials: <strong>admin@accessigo.ph</strong> / <strong>admin1234</strong>
+    </div>
+    <div class="fg"><label>Admin Email</label><input type="email" id="adm-email" placeholder="admin@accessigo.ph"></div>
+    <div class="fg"><label>Admin Password</label><input type="password" id="adm-pw" placeholder="••••••••"></div>
+    <div class="err-msg" id="adm-err">Invalid admin credentials.</div>
+    <button class="auth-submit adm-submit-btn" onclick="doAdminLogin()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Access Admin Panel
+    </button>
+    <div class="auth-switch" style="margin-top:12px"><a onclick="closeAdminLogin();openLogin()" style="color:var(--g500)">← Back to regular login</a></div>
+  </div>
+</div>
+
+<!-- Navigation Confirm Modal -->
+<div class="backdrop" id="nav-modal">
+  <div class="modal">
+    <h3 id="nm-title">Navigate to Location</h3>
+    <p id="nm-body" style="color:var(--g400);font-size:.83rem;line-height:1.6;margin:10px 0 20px"></p>
+    <div class="modal-actions">
+      <button class="btn-cancel"  onclick="closeNav()">Cancel</button>
+      <button class="btn-confirm" onclick="startNav()">Start Navigation</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ EDIT LOCATION MODAL ══ -->
+<div class="backdrop" id="edit-modal">
+  <div class="modal" style="width:480px;max-width:95vw">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <h3 style="margin:0">Edit Location</h3>
+      <button class="modal-close-x" onclick="closeEditModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <input type="hidden" id="edit-id">
+    <div class="fg"><label>Name</label><input type="text" id="edit-name" placeholder="Location name"></div>
+    <div class="fg">
+      <label>Type</label>
+      <select id="edit-type">
+        <option value="ramp">Ramp</option>
+        <option value="audio">Audio Guide</option>
+        <option value="elevator">Elevator/Lift</option>
+        <option value="service">Public Service</option>
+        <option value="park">Park/Open Space</option>
+        <option value="danger">Hazard</option>
+      </select>
+    </div>
+    <div class="fg"><label>Street / Landmark</label><input type="text" id="edit-street" placeholder="Street address"></div>
+    <div class="fg"><label>Description</label><textarea id="edit-desc" rows="3" placeholder="Description…"></textarea></div>
+    <div class="fg">
+      <label>Rating</label>
+      <select id="edit-rating">
+        <option value="5">★★★★★ Excellent</option>
+        <option value="4">★★★★☆ Good</option>
+        <option value="3">★★★☆☆ Fair</option>
+        <option value="2">★★☆☆☆ Poor</option>
+        <option value="1">★☆☆☆☆ Inaccessible</option>
+      </select>
+    </div>
+    <div class="fg"><label>Audio Cue</label><input type="text" id="edit-audio" placeholder="Spoken description…"></div>
+    <div class="fg">
+      <label>Status</label>
+      <select id="edit-status">
+        <option value="active">Active</option>
+        <option value="pending">Pending</option>
+        <option value="archived">Archived</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="btn-cancel" style="flex:1" onclick="closeEditModal()">Cancel</button>
+      <button class="btn-confirm" style="flex:2" onclick="saveEditLocation()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     TOAST NOTIFICATION
+     ══════════════════════════════════════════ -->
+<div class="toast" id="toast">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+  <span id="toast-msg"></span>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

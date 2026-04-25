@@ -1,0 +1,9 @@
+{
+  "name": "accessigo",
+  "version": "1.0.0",
+  "description": "AccessiGo - Accessibility mapping for Barangay Sta. Rita",
+  "scripts": {
+    "start": "cd backend-accessigo && npm start",
+    "seed": "cd backend-accessigo && npm run seed"
+  }
+}
