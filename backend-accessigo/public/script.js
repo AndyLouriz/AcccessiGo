@@ -6,7 +6,16 @@
 // ═══════════════════════════════════════════════════════════
 //  CONFIG
 // ═══════════════════════════════════════════════════════════
-const API_BASE = 'http://localhost:3000/api';
+const isLocalHost = typeof window !== 'undefined' && (
+  window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1' ||
+  window.location.hostname === '::1' ||
+  window.location.protocol === 'file:'
+);
+
+const API_BASE = isLocalHost
+  ? 'http://localhost:3000/api'                   // Local development
+  : 'https://acccessigo.onrender.com/api'; // Production backend URL
 let   USE_API  = true;
 
 // ═══════════════════════════════════════════════════════════
@@ -143,13 +152,17 @@ async function loadAuth() {
   if (saved) { currentUser = JSON.parse(saved); applyUser(); }
   if (authToken && USE_API) {
     try {
-      const res = await fetch(API_BASE + '/auth/me', { headers: { 'Authorization': `Bearer ${authToken}` } });
+      // Use apiGet so expired access tokens can be refreshed automatically.
+      const res = await apiGet('/auth/me');
       if (res.ok) {
         const data = await res.json();
         currentUser = data.user;
         localStorage.setItem('ago_user', JSON.stringify(currentUser));
         applyUser();
-      } else { clearAuth(); applyGuest(); }
+      } else if (res.status === 401) {
+        clearAuth();
+        applyGuest();
+      }
     } catch { /* offline */ }
   }
 }
@@ -338,6 +351,9 @@ function showView(v) {
   document.getElementById(v + '-view').classList.add('active');
   const nb = document.getElementById('nb-' + v);
   if (nb) nb.classList.add('active');
+  if (v === 'home') {
+    buildHomeMiniMap(); // Rebuild home map with latest locations
+  }
   if (v === 'map')   {
     renderCards();
     buildMarkers();
@@ -816,7 +832,7 @@ function speakNavigationSteps(steps, index) {
   const stepElements = document.querySelectorAll('.step .sdot');
   stepElements.forEach((dot, i) => dot.classList.toggle('on', i === index));
 
-  // Speak and chain to next step ONLY after it finishes (onend callback)
+  // Speak current step and move to next ONLY after it finishes (onend callback)
   speak(steps[index], () => {
     setTimeout(() => speakNavigationSteps(steps, index + 1), 600);
   });
@@ -997,11 +1013,12 @@ function speak(text, onComplete) {
   // Small delay to let cancel() take full effect before queuing next utterance
   setTimeout(() => {
     const u = new SpeechSynthesisUtterance(text);
-    u.rate  = 0.85;
+    u.rate  = 0.85; // Slightly slower for clarity
     u.pitch = 1.0;
     u.lang  = 'en-US';
     u.volume = 1.0;
 
+    // Pick the best available English voice (prefer natural-sounding ones)
     const voices = synth.getVoices();
     const preferred = voices.find(v => v.lang === 'en-US' && /Samantha|Karen|Moira|Google US English/i.test(v.name))
       || voices.find(v => v.lang === 'en-US')
@@ -1015,6 +1032,7 @@ function speak(text, onComplete) {
       if (onComplete) onComplete();
     };
     u.onerror = (e) => {
+      // 'interrupted' and 'canceled' are non-fatal — the next step will still be called
       if (e.error === 'interrupted' || e.error === 'canceled') {
         if (onComplete) onComplete();
         return;
@@ -1027,6 +1045,9 @@ function speak(text, onComplete) {
 
     try {
       synth.speak(u);
+
+      // Chrome bug workaround: speechSynthesis pauses itself after ~15 s of silence
+      // Keep it alive while an utterance is queued by nudging pause/resume
       const keepAlive = setInterval(() => {
         if (!synth.speaking) { clearInterval(keepAlive); return; }
         synth.pause();
@@ -1199,6 +1220,7 @@ async function updateAdminCounts() {
   const active  = LOCATIONS.filter(l => l.status === 'active').length;
   const audio   = LOCATIONS.filter(l => l.type === 'audio').length;
 
+  // Fetch real pending count from API if available
   let pending = getPendingLocations().length;
   let users   = getUsers().length;
 
@@ -1208,8 +1230,8 @@ async function updateAdminCounts() {
         apiFetch('/admin/pending', { method: 'GET' }).catch(() => null),
         apiFetch('/admin/users',   { method: 'GET' }).catch(() => null),
       ]);
-      if (pendRes  && pendRes.ok)  { const d = await pendRes.json();  pending = d.count ?? d.locations?.length ?? pending; }
-      if (usersRes && usersRes.ok) { const d = await usersRes.json(); users   = d.count ?? d.users?.length    ?? users;   }
+      if (pendRes  && pendRes.ok)  { const d = await pendRes.json();  pending = d.count  ?? d.locations?.length ?? pending; }
+      if (usersRes && usersRes.ok) { const d = await usersRes.json(); users   = d.count  ?? d.users?.length    ?? users;   }
     } catch { /* keep local counts */ }
   }
 
@@ -1313,6 +1335,7 @@ async function renderAdminPending() {
       if (res.ok) {
         const data = await res.json();
         list = data.locations || [];
+        // Normalise field names from Supabase join (users object → reporter string)
         list = list.map(l => ({
           ...l,
           reporter: l.users?.name || l.reporter || 'Anonymous',
@@ -1321,6 +1344,7 @@ async function renderAdminPending() {
             : (l.submitted || ''),
         }));
       } else {
+        // Fall back to local data if API call fails (e.g. not admin)
         list = getPendingLocations();
       }
     } catch {
@@ -1330,6 +1354,7 @@ async function renderAdminPending() {
     list = getPendingLocations();
   }
 
+  // Update count badge
   const countEl = document.getElementById('adn-pend-count');
   if (countEl) countEl.textContent = list.length;
   const pendEl = document.getElementById('adms-pending');
@@ -1370,6 +1395,7 @@ async function renderAdminPending() {
 async function approveLocation(id) {
   const loc = LOCATIONS.find(l => l.id === id);
   if (loc) loc.status = 'active';
+  // Remove from pending localStorage
   const pending = JSON.parse(localStorage.getItem('ago_pending') || '[]').filter(p => p.id !== id);
   localStorage.setItem('ago_pending', JSON.stringify(pending));
   if (USE_API) {
@@ -1380,10 +1406,11 @@ async function approveLocation(id) {
       await renderAdminPending();
       return;
     }
+    // Reload locations from API to sync with other users
     await reloadLocations();
   }
   showToast('Location approved and published!');
-  updateAdminCounts(); await renderAdminPending();
+  updateAdminCounts(); await renderAdminPending(); buildHomeMiniMap();
 }
 
 async function rejectLocation(id) {
@@ -1528,6 +1555,13 @@ function deleteLocation(id) {
 // ═══════════════════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════════════════
+async function reloadLocations() {
+  try {
+    const res = await fetch(API_BASE + '/locations?limit=200');
+    if (res.ok) { const data = await res.json(); LOCATIONS = data.locations || []; }
+  } catch { /* keep existing locations */ }
+}
+
 async function init() {
   await loadAuth();
   try {
