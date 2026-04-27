@@ -15,7 +15,7 @@ const isLocalHost = typeof window !== 'undefined' && (
 
 const API_BASE = isLocalHost
   ? 'http://localhost:3000/api'                   // Local development
-  : 'https://accessigo-backend.onrender.com/api'; // Production backend URL
+  : 'https://acccessigo.onrender.com/api'; // Production backend URL
 let   USE_API  = true;
 
 // ═══════════════════════════════════════════════════════════
@@ -823,22 +823,19 @@ function startNav() {
 
 function speakNavigationSteps(steps, index) {
   if (index >= steps.length) {
-    // After all steps, play the location audio cue
-    setTimeout(() => playLocAudio(navTargetId), 1000);
+    // All steps spoken — play location audio cue
+    setTimeout(() => playLocAudio(navTargetId), 800);
     return;
   }
 
-  // Update UI to show current step
+  // Highlight current step in UI
   const stepElements = document.querySelectorAll('.step .sdot');
-  stepElements.forEach((dot, i) => {
-    dot.classList.toggle('on', i === index);
+  stepElements.forEach((dot, i) => dot.classList.toggle('on', i === index));
+
+  // Speak current step and move to next ONLY after it finishes (onend callback)
+  speak(steps[index], () => {
+    setTimeout(() => speakNavigationSteps(steps, index + 1), 600);
   });
-
-  speak(steps[index]);
-
-  // Schedule next step after current speech ends
-  const delay = Math.max(3000, steps[index].length * 50); // Minimum 3 seconds, plus time based on text length
-  setTimeout(() => speakNavigationSteps(steps, index + 1), delay);
 }
 
 // Test voice assistant function
@@ -1004,40 +1001,66 @@ function setAudioState(on, title, sub) {
   const wave = document.getElementById('a-wave');
   if (wave) on ? wave.classList.add('playing') : wave.classList.remove('playing');
 }
-function speak(text) {
+function speak(text, onComplete) {
   if (!synth) {
     console.warn('Speech synthesis not supported');
     showToast('Voice guidance not available on this device');
+    if (onComplete) onComplete();
     return;
   }
   synth.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.rate = 0.9;  // Slightly faster for clearer speech
-  u.pitch = 1.1; // Slightly higher pitch for better clarity
-  u.lang = 'en-US';
-  u.volume = 1.0;
 
-  // Get available voices and use a clear English voice if available
-  const voices = synth.getVoices();
-  const englishVoice = voices.find(voice => voice.lang.startsWith('en') && voice.name.includes('Female'));
-  if (englishVoice) {
-    u.voice = englishVoice;
-  }
+  // Small delay to let cancel() take full effect before queuing next utterance
+  setTimeout(() => {
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate  = 0.85; // Slightly slower for clarity
+    u.pitch = 1.0;
+    u.lang  = 'en-US';
+    u.volume = 1.0;
 
-  u.onstart = () => setAudioState(true, 'Speaking...', text.slice(0, 40) + '...');
-  u.onend = () => setAudioState(false, 'Audio Guide Ready', 'Select a location to start');
-  u.onerror = (e) => {
-    console.error('Speech synthesis error:', e);
-    setAudioState(false, 'Audio Guide Ready', 'Voice error - try again');
-    showToast('Voice guidance error - please try again');
-  };
+    // Pick the best available English voice (prefer natural-sounding ones)
+    const voices = synth.getVoices();
+    const preferred = voices.find(v => v.lang === 'en-US' && /Samantha|Karen|Moira|Google US English/i.test(v.name))
+      || voices.find(v => v.lang === 'en-US')
+      || voices.find(v => v.lang.startsWith('en-'))
+      || voices.find(v => v.lang.startsWith('en'));
+    if (preferred) u.voice = preferred;
 
-  try {
-    synth.speak(u);
-  } catch (error) {
-    console.error('Speech synthesis failed:', error);
-    showToast('Voice guidance failed to start');
-  }
+    u.onstart = () => setAudioState(true, 'Speaking...', text.slice(0, 40) + (text.length > 40 ? '...' : ''));
+    u.onend = () => {
+      setAudioState(false, 'Audio Guide Ready', 'Select a location to start');
+      if (onComplete) onComplete();
+    };
+    u.onerror = (e) => {
+      // 'interrupted' and 'canceled' are non-fatal — the next step will still be called
+      if (e.error === 'interrupted' || e.error === 'canceled') {
+        if (onComplete) onComplete();
+        return;
+      }
+      console.error('Speech synthesis error:', e);
+      setAudioState(false, 'Audio Guide Ready', 'Voice error - try again');
+      showToast('Voice guidance error - please try again');
+      if (onComplete) onComplete();
+    };
+
+    try {
+      synth.speak(u);
+
+      // Chrome bug workaround: speechSynthesis pauses itself after ~15 s of silence
+      // Keep it alive while an utterance is queued by nudging pause/resume
+      const keepAlive = setInterval(() => {
+        if (!synth.speaking) { clearInterval(keepAlive); return; }
+        synth.pause();
+        synth.resume();
+      }, 10000);
+      u.onend   = (orig => () => { clearInterval(keepAlive); orig(); })(u.onend);
+      u.onerror = (orig => (e) => { clearInterval(keepAlive); orig(e); })(u.onerror);
+    } catch (error) {
+      console.error('Speech synthesis failed:', error);
+      showToast('Voice guidance failed to start');
+      if (onComplete) onComplete();
+    }
+  }, 80);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1173,7 +1196,7 @@ async function loadStats() {
 // ═══════════════════════════════════════════════════════════
 //  ADMIN DASHBOARD
 // ═══════════════════════════════════════════════════════════
-function adminTab(tab) {
+async function adminTab(tab) {
   document.querySelectorAll('.adm-nav-item').forEach(i => i.classList.remove('active'));
   document.querySelectorAll('.adm-tab').forEach(t => t.classList.remove('active'));
   const navEl = document.getElementById('adn-' + tab);
@@ -1182,22 +1205,35 @@ function adminTab(tab) {
   if (tabEl) tabEl.classList.add('active');
   if (tab === 'overview')  renderAdminOverview();
   if (tab === 'locations') renderAdminLocations();
-  if (tab === 'pending')   renderAdminPending();
-  if (tab === 'users')     renderAdminUsers();
+  if (tab === 'pending')   await renderAdminPending();
+  if (tab === 'users')     await renderAdminUsers();
 }
 
-function refreshAdminDashboard() {
+async function refreshAdminDashboard() {
   const admUname = document.getElementById('adm-uname');
   if (admUname && currentUser) admUname.textContent = currentUser.name.split(' ')[0];
-  updateAdminCounts();
+  await updateAdminCounts();
   renderAdminOverview();
 }
 
-function updateAdminCounts() {
+async function updateAdminCounts() {
   const active  = LOCATIONS.filter(l => l.status === 'active').length;
-  const pending = getPendingLocations().length;
-  const users   = getUsers().length;
   const audio   = LOCATIONS.filter(l => l.type === 'audio').length;
+
+  // Fetch real pending count from API if available
+  let pending = getPendingLocations().length;
+  let users   = getUsers().length;
+
+  if (USE_API) {
+    try {
+      const [pendRes, usersRes] = await Promise.all([
+        apiFetch('/admin/pending', { method: 'GET' }).catch(() => null),
+        apiFetch('/admin/users',   { method: 'GET' }).catch(() => null),
+      ]);
+      if (pendRes  && pendRes.ok)  { const d = await pendRes.json();  pending = d.count  ?? d.locations?.length ?? pending; }
+      if (usersRes && usersRes.ok) { const d = await usersRes.json(); users   = d.count  ?? d.users?.length    ?? users;   }
+    } catch { /* keep local counts */ }
+  }
 
   setEl('adn-loc-count',   active);
   setEl('adn-pend-count',  pending);
@@ -1285,10 +1321,45 @@ function renderAdminLocations() {
 }
 
 // ── Pending ───────────────────────────────────────────────
-function renderAdminPending() {
-  const list = getPendingLocations();
-  const el   = document.getElementById('adm-pending-list');
+async function renderAdminPending() {
+  const el = document.getElementById('adm-pending-list');
   if (!el) return;
+
+  el.innerHTML = `<div class="adm-empty" style="color:var(--g500);padding:24px;text-align:center">Loading pending submissions…</div>`;
+
+  let list = [];
+
+  if (USE_API) {
+    try {
+      const res = await apiFetch('/admin/pending', { method: 'GET' });
+      if (res.ok) {
+        const data = await res.json();
+        list = data.locations || [];
+        // Normalise field names from Supabase join (users object → reporter string)
+        list = list.map(l => ({
+          ...l,
+          reporter: l.users?.name || l.reporter || 'Anonymous',
+          submitted: l.created_at
+            ? new Date(l.created_at).toLocaleDateString()
+            : (l.submitted || ''),
+        }));
+      } else {
+        // Fall back to local data if API call fails (e.g. not admin)
+        list = getPendingLocations();
+      }
+    } catch {
+      list = getPendingLocations();
+    }
+  } else {
+    list = getPendingLocations();
+  }
+
+  // Update count badge
+  const countEl = document.getElementById('adn-pend-count');
+  if (countEl) countEl.textContent = list.length;
+  const pendEl = document.getElementById('adms-pending');
+  if (pendEl) pendEl.textContent = list.length;
+
   if (!list.length) {
     el.innerHTML = `<div class="adm-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:40px;height:40px;color:var(--g600);margin-bottom:12px"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><div>No pending submissions</div><div style="color:var(--g500);font-size:.78rem;margin-top:4px">All caught up!</div></div>`;
     return;
@@ -1328,34 +1399,71 @@ async function approveLocation(id) {
   const pending = JSON.parse(localStorage.getItem('ago_pending') || '[]').filter(p => p.id !== id);
   localStorage.setItem('ago_pending', JSON.stringify(pending));
   if (USE_API) {
-    await apiPost(`/admin/approve/${id}`, {}).catch(() => {});
+    const res = await apiFetch(`/admin/approve/${id}`, { method: 'POST', body: JSON.stringify({}) }).catch(() => null);
+    if (res && !res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(err.error || 'Approval failed. Please try again.');
+      await renderAdminPending();
+      return;
+    }
     // Reload locations from API to sync with other users
     await reloadLocations();
   }
   showToast('Location approved and published!');
-  updateAdminCounts(); renderAdminPending(); buildHomeMiniMap();
+  updateAdminCounts(); await renderAdminPending(); buildHomeMiniMap();
 }
 
-function rejectLocation(id) {
+async function rejectLocation(id) {
   LOCATIONS = LOCATIONS.filter(l => l.id !== id);
   const pending = JSON.parse(localStorage.getItem('ago_pending') || '[]').filter(p => p.id !== id);
   localStorage.setItem('ago_pending', JSON.stringify(pending));
-  if (USE_API) apiPost(`/admin/reject/${id}`, {}).catch(() => {});
+  if (USE_API) {
+    await apiFetch(`/admin/reject/${id}`, { method: 'POST', body: JSON.stringify({}) }).catch(() => {});
+  }
   showToast('Submission rejected.');
-  updateAdminCounts(); renderAdminPending();
+  updateAdminCounts(); await renderAdminPending();
 }
 
 // ── Users ────────────────────────────────────────────────
-function renderAdminUsers() {
-  const users = getUsers();
-  const sub   = document.getElementById('adm-users-sub');
-  if (sub) sub.textContent = `${users.length} registered user${users.length !== 1 ? 's' : ''}`;
+async function renderAdminUsers() {
   const tbody = document.getElementById('adm-users-tbody');
+  const sub   = document.getElementById('adm-users-sub');
   if (!tbody) return;
+
+  tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--g500);padding:24px">Loading users…</td></tr>`;
+
+  let users = [];
+
+  if (USE_API) {
+    try {
+      const res = await apiFetch('/admin/users', { method: 'GET' });
+      if (res.ok) {
+        const data = await res.json();
+        users = (data.users || []).map(u => ({
+          ...u,
+          joined: u.created_at ? new Date(u.created_at).toLocaleDateString() : '—',
+        }));
+      } else {
+        users = getUsers();
+      }
+    } catch {
+      users = getUsers();
+    }
+  } else {
+    users = getUsers();
+  }
+
+  if (sub) sub.textContent = `${users.length} registered user${users.length !== 1 ? 's' : ''}`;
+  const countEl = document.getElementById('adn-user-count');
+  if (countEl) countEl.textContent = users.length;
+  const usersEl = document.getElementById('adms-users');
+  if (usersEl) usersEl.textContent = users.length;
+
   if (!users.length) {
     tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--g500);padding:24px">No registered users yet.</td></tr>`;
     return;
   }
+
   tbody.innerHTML = users.map(u => `
     <tr>
       <td><div class="adm-td-name">${u.name}</div></td>
@@ -1364,7 +1472,7 @@ function renderAdminUsers() {
       <td style="color:var(--g500)">${u.joined || '—'}</td>
       <td>
         <div class="adm-row-acts">
-          <button class="adm-act-btn adm-act-del" onclick="deleteUser('${u.email}')" title="Remove user">
+          <button class="adm-act-btn adm-act-del" onclick="deleteUser(${u.id}, '${u.email}')" title="Remove user">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
           </button>
         </div>
@@ -1372,12 +1480,27 @@ function renderAdminUsers() {
     </tr>`).join('');
 }
 
-function deleteUser(email) {
+async function deleteUser(id, email) {
   if (!confirm(`Remove user ${email}? This cannot be undone.`)) return;
-  const users = getUsers().filter(u => u.email !== email);
-  localStorage.setItem('ago_users', JSON.stringify(users));
+  if (USE_API) {
+    try {
+      const res = await apiFetch(`/admin/users/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.error || 'Failed to delete user.');
+        return;
+      }
+    } catch {
+      showToast('Network error. Could not delete user.');
+      return;
+    }
+  } else {
+    const users = getUsers().filter(u => u.email !== email);
+    localStorage.setItem('ago_users', JSON.stringify(users));
+  }
   showToast('User removed.');
-  renderAdminUsers(); updateAdminCounts();
+  await renderAdminUsers();
+  updateAdminCounts();
 }
 
 // ── Edit Location Modal ───────────────────────────────────

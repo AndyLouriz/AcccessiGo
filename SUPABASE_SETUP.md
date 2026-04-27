@@ -170,7 +170,7 @@ async function getLocations() {
 ```
 SUPABASE_URL=https://bsjddikivzmiahulimxg.supabase.com
 SUPABASE_ANON_KEY=sb_publishable_qJY6yXk1Udl2UPpBK1YL_g_7OJVY2TW
-SUPABASE_SERVICE_ROLE_KEY=sb_secret_AM198gUHnOM4HqA4OdcnyA__MkHjpmh
+SUPABASE_SERVICE_ROLE_KEY=YOUR_KEY_HERE
 ```
 
 ## 🔒 Security Notes

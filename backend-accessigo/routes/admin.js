@@ -236,4 +236,37 @@ router.get('/audit-logs/:entityType/:entityId', async (req, res) => {
   }
 });
 
+// ── DELETE /api/admin/users/:id ───────────────────────────
+router.delete('/users/:id', async (req, res) => {
+  try {
+    const { data: user, error: fetchError } = await db
+      .from('users')
+      .select('id, role')
+      .eq('id', req.params.id)
+      .single();
+
+    if (fetchError || !user) return res.status(404).json({ error: 'User not found.' });
+
+    // Prevent deleting other admins
+    if (user.role === 'admin') {
+      return res.status(403).json({ error: 'Cannot delete an admin account.' });
+    }
+
+    // Clean up tokens and related data first
+    await db.from('refresh_tokens').delete().eq('user_id', user.id);
+    await db.from('ratings').delete().eq('user_id', user.id);
+    await db.from('checkins').delete().eq('user_id', user.id);
+
+    await db.from('users').delete().eq('id', user.id);
+
+    await logAudit(req.user.id, 'delete_user', 'users', user.id,
+      { role: user.role }, null, req);
+
+    res.json({ message: 'User deleted.' });
+  } catch (err) {
+    console.error('Error deleting user:', err);
+    res.status(500).json({ error: 'Failed to delete user.' });
+  }
+});
+
 export default router;
