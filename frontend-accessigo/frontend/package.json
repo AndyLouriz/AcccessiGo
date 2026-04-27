@@ -4,6 +4,7 @@
   "description": "AccessiGo - Accessibility mapping for Barangay Sta. Rita",
   "scripts": {
     "start": "cd backend-accessigo && npm start",
+    "build": "cd backend-accessigo && npm install",
     "seed": "cd backend-accessigo && npm run seed"
   }
 }
