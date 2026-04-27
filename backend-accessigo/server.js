@@ -29,6 +29,9 @@ const allowedOrigins = [
   'http://127.0.0.1:3000',
   'http://localhost:8080',
   'file://',                   // Opening index.html directly
+  'https://58457a7a.accessigo.pages.dev', // Cloudbase production frontend
+  // Add more allowed origins via env var if needed
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
 ];
 
 app.use(cors({

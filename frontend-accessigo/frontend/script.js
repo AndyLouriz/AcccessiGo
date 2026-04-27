@@ -15,7 +15,7 @@ const isLocalHost = typeof window !== 'undefined' && (
 
 const API_BASE = isLocalHost
   ? 'http://localhost:3000/api'                   // Local development
-  : 'https://acccessigo.onrender.com/api'; // Production backend URL
+  : 'https://acccessigo-2.onrender.com/api'; // Production backend URL
 let   USE_API  = true;
 
 // ═══════════════════════════════════════════════════════════
